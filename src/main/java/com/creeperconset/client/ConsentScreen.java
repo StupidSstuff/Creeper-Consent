@@ -18,8 +18,6 @@ import net.minecraft.text.Text;
 import java.util.UUID;
 
 public class ConsentScreen extends Screen {
-    private static final Text TITLE = Text.literal("Creeper Consent Request");
-    private static final Text MESSAGE = Text.literal("A creeper has asked for your permission to explode (on you)");
     private static final int BUTTON_WIDTH = 150;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 10;
@@ -27,7 +25,7 @@ public class ConsentScreen extends Screen {
     private final UUID creeperUuid;
 
     public ConsentScreen(UUID creeperUuid) {
-        super(TITLE);
+        super(Text.translatable("creeperconset.screen.title"));
         this.creeperUuid = creeperUuid;
     }
 
@@ -39,7 +37,7 @@ public class ConsentScreen extends Screen {
         int centerY = this.height / 2;
 
         this.addDrawableChild(ButtonWidget.builder(
-                Text.literal("Sure, let's go"),
+                Text.translatable("creeperconset.button.accept"),
                 button -> handleConsent(true)
         ).dimensions(
                 centerX - BUTTON_WIDTH - BUTTON_SPACING / 2,
@@ -49,7 +47,7 @@ public class ConsentScreen extends Screen {
         ).build());
 
         this.addDrawableChild(ButtonWidget.builder(
-                Text.literal("Nah, not today"),
+                Text.translatable("creeperconset.button.deny"),
                 button -> handleConsent(false)
         ).dimensions(
                 centerX + BUTTON_SPACING / 2,
@@ -65,7 +63,7 @@ public class ConsentScreen extends Screen {
 
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                TITLE,
+                Text.translatable("creeperconset.screen.title"),
                 this.width / 2,
                 this.height / 2 - 50,
                 0xFFFFFFFF
@@ -73,7 +71,7 @@ public class ConsentScreen extends Screen {
 
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                MESSAGE,
+                Text.translatable("creeperconset.screen.message"),
                 this.width / 2,
                 this.height / 2 - 20,
                 0xFFFFFFFF
@@ -88,6 +86,7 @@ public class ConsentScreen extends Screen {
 
         CreeperConsentMod.LOGGER.info("Sent consent response: {}", allowed);
 
+        // Clear client-side tracking
         CreeperConsentMod.clearClientPendingCreeper(this.creeperUuid);
 
         if (this.client != null) {
