@@ -8,12 +8,14 @@
 package com.creeperconset.client;
 
 import com.creeperconset.CreeperConsentMod;
+import com.creeperconset.ConsentResponsePayload;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.entity.mob.CreeperEntity;
 import net.minecraft.text.Text;
-import net.minecraft.world.World;
+
+import java.util.UUID;
 
 public class ConsentScreen extends Screen {
     private static final Text TITLE = Text.literal("Creeper Consent Request");
@@ -21,18 +23,21 @@ public class ConsentScreen extends Screen {
     private static final int BUTTON_WIDTH = 150;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 10;
-    
-    public ConsentScreen() {
+
+    private final UUID creeperUuid;
+
+    public ConsentScreen(UUID creeperUuid) {
         super(TITLE);
+        this.creeperUuid = creeperUuid;
     }
-    
+
     @Override
     protected void init() {
         super.init();
-        
+
         int centerX = this.width / 2;
         int centerY = this.height / 2;
-        
+
         this.addDrawableChild(ButtonWidget.builder(
                 Text.literal("Sure, let's go"),
                 button -> handleConsent(true)
@@ -42,7 +47,7 @@ public class ConsentScreen extends Screen {
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT
         ).build());
-        
+
         this.addDrawableChild(ButtonWidget.builder(
                 Text.literal("Nah, not today"),
                 button -> handleConsent(false)
@@ -76,45 +81,25 @@ public class ConsentScreen extends Screen {
 
         super.render(context, mouseX, mouseY, delta);
     }
-    
+
     private void handleConsent(boolean allowed) {
-        CreeperEntity creeper = CreeperConsentMod.getPendingCreeper();
-        
-        if (creeper != null && !creeper.isRemoved()) {
-            World world = creeper.getEntityWorld();
-            if (allowed) {
-                CreeperConsentMod.LOGGER.info("Consent granted.");
-                if (world != null) {
-                    world.createExplosion(
-                        creeper,
-                        creeper.getX(),
-                        creeper.getY(),
-                        creeper.getZ(),
-                        3.0f,
-                        World.ExplosionSourceType.MOB
-                    );
-                }
-                creeper.discard();
-            } else {
-                CreeperConsentMod.LOGGER.info("Consent denied.");
-                creeper.discard();
-            }
-        } else {
-            CreeperConsentMod.LOGGER.warn("No active creeper.");
-        }
-        
-        CreeperConsentMod.clearPendingCreeper();
-        
+        ConsentResponsePayload payload = new ConsentResponsePayload(this.creeperUuid, allowed);
+        ClientPlayNetworking.send(payload);
+
+        CreeperConsentMod.LOGGER.info("Sent consent response: {}", allowed);
+
+        CreeperConsentMod.clearClientPendingCreeper(this.creeperUuid);
+
         if (this.client != null) {
             this.client.setScreen(null);
         }
     }
-    
+
     @Override
     public boolean shouldPause() {
         return true;
     }
-    
+
     @Override
     public boolean shouldCloseOnEsc() {
         return false;

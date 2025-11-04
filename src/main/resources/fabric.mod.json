@@ -2,16 +2,19 @@
   "schemaVersion": 1,
   "id": "creeperconset",
   "version": "${version}",
-  "name": "Creeper Consent",
+  "name": "CreeperConsent",
   "description": "Creepers will now ask for your consent before exploding!",
   "authors": [
     "Sectorfive"
   ],
   "license": "MulanPSL-2.0",
   "icon": "assets/creeperconset/icon.png",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
     "client": [
+      "com.creeperconset.CreeperConsentMod"
+    ],
+    "main": [
       "com.creeperconset.CreeperConsentMod"
     ]
   },
