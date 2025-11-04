@@ -25,6 +25,5 @@ There are no strict rules about what can or can’t be added, so don’t hesitat
 ## Features
 
 1. Creeper Consent
-2. Multiple Language Support
-3. Multiple languages (users need to contribute translations in form of json files)
+2. Multiple languages (users need to contribute translations in form of json files)
 4. Singleplayer and Multiplayer Support
