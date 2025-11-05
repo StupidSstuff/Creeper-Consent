@@ -86,7 +86,6 @@ public class ConsentScreen extends Screen {
 
         CreeperConsentMod.LOGGER.info("Sent consent response: {}", allowed);
 
-        // Clear client-side tracking
         CreeperConsentMod.clearClientPendingCreeper(this.creeperUuid);
 
         if (this.client != null) {
