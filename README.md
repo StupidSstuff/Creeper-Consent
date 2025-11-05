@@ -14,4 +14,16 @@ A mod that changes creeper behavior, making them ask a player for consent before
 
 ## Contributing
 
-I originally made this mod based on a YouTube video and the comments on that video, including the Micro$oft/Mojangs "Nothing bad will happen to a player unless it's directly caused by them." But I noticed a lot of interest and that many people liked and wanted this mod to continue, judging by how it was received on Reddit. So your contributions are welcomed, as I don't have much time to keep this mod up-to-date. If you want to add a new feature or fix something, you're more than welcome to fork this project and contribute your code. I will happily accept most of your contributions, as long as it works. There are no strict rules about what can or can't be done or added, so feel free to experiment.
+I originally created this mod after watching a YouTube video and reading the comments under it, especially the ones quoting Micro$oft/Mojang’s line: "Nothing bad will happen to a player unless it’s directly caused by them."
+
+Since then, I’ve noticed a lot of interest and support for the mod, especially on Reddit, where many people wanted to see it continue. Because I don’t have much time to maintain it regularly, contributions are more than welcome!
+
+If you’d like to add new features or fix existing issues, feel free to fork the project and submit your changes. I’ll gladly accept most contributions, as long as they work properly.
+
+There are no strict rules about what can or can’t be added, so don’t hesitate to experiment and have fun with it.
+
+## Features
+
+1. Creeper Consent
+2. Multiple languages (users need to contribute translations in form of json files)
+4. Singleplayer and Multiplayer Support
