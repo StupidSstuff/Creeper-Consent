@@ -10,10 +10,10 @@ package com.creeperconset.client;
 import com.creeperconset.CreeperConsentMod;
 import com.creeperconset.ConsentResponsePayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 import java.util.UUID;
 
@@ -25,7 +25,7 @@ public class ConsentScreen extends Screen {
     private final UUID creeperUuid;
 
     public ConsentScreen(UUID creeperUuid) {
-        super(Text.translatable("creeperconset.screen.title"));
+        super(Component.translatable("creeperconset.screen.title"));
         this.creeperUuid = creeperUuid;
     }
 
@@ -36,20 +36,20 @@ public class ConsentScreen extends Screen {
         int centerX = this.width / 2;
         int centerY = this.height / 2;
 
-        this.addDrawableChild(ButtonWidget.builder(
-                Text.translatable("creeperconset.button.accept"),
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("creeperconset.button.accept"),
                 button -> handleConsent(true)
-        ).dimensions(
+        ).bounds(
                 centerX - BUTTON_WIDTH - BUTTON_SPACING / 2,
                 centerY + 30,
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT
         ).build());
 
-        this.addDrawableChild(ButtonWidget.builder(
-                Text.translatable("creeperconset.button.deny"),
+        this.addRenderableWidget(Button.builder(
+                Component.translatable("creeperconset.button.deny"),
                 button -> handleConsent(false)
-        ).dimensions(
+        ).bounds(
                 centerX + BUTTON_SPACING / 2,
                 centerY + 30,
                 BUTTON_WIDTH,
@@ -58,26 +58,26 @@ public class ConsentScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, this.width, this.height, 0xC0101010);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        graphics.fill(0, 0, this.width, this.height, 0xC0101010);
 
-        context.drawCenteredTextWithShadow(
-                this.textRenderer,
-                Text.translatable("creeperconset.screen.title"),
+        graphics.centeredText(
+                this.font,
+                Component.translatable("creeperconset.screen.title"),
                 this.width / 2,
                 this.height / 2 - 50,
                 0xFFFFFFFF
         );
 
-        context.drawCenteredTextWithShadow(
-                this.textRenderer,
-                Text.translatable("creeperconset.screen.message"),
+        graphics.centeredText(
+                this.font,
+                Component.translatable("creeperconset.screen.message"),
                 this.width / 2,
                 this.height / 2 - 20,
                 0xFFFFFFFF
         );
 
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
 
     private void handleConsent(boolean allowed) {
@@ -88,13 +88,13 @@ public class ConsentScreen extends Screen {
 
         CreeperConsentMod.clearClientPendingCreeper(this.creeperUuid);
 
-        if (this.client != null) {
-            this.client.setScreen(null);
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(null);
         }
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return true;
     }
 

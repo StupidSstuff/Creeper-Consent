@@ -16,7 +16,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 public class CreeperConsentModClient {
 
     public static void registerClientNetworking() {
-        ClientPlayNetworking.registerGlobalReceiver(ConsentRequestPayload.ID, (payload, context) -> {
+        ClientPlayNetworking.registerGlobalReceiver(ConsentRequestPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 if (CreeperConsentMod.setClientPendingCreeper(payload.creeperUuid())) {
                     context.client().setScreen(new ConsentScreen(payload.creeperUuid()));

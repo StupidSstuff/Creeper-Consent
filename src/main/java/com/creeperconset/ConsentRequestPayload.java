@@ -7,22 +7,22 @@
 
 package com.creeperconset;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 import java.util.UUID;
 
-public record ConsentRequestPayload(UUID creeperUuid) implements CustomPayload {
-    public static final Id<ConsentRequestPayload> ID = new Id<>(CreeperConsentMod.CONSENT_REQUEST_ID);
+public record ConsentRequestPayload(UUID creeperUuid) implements CustomPacketPayload {
+    public static final CustomPacketPayload.Type<ConsentRequestPayload> TYPE = new CustomPacketPayload.Type<>(CreeperConsentMod.CONSENT_REQUEST_ID);
 
-    public static final PacketCodec<RegistryByteBuf, ConsentRequestPayload> CODEC = PacketCodec.of(
-            (value, buf) -> buf.writeUuid(value.creeperUuid),
-            buf -> new ConsentRequestPayload(buf.readUuid())
+    public static final StreamCodec<RegistryFriendlyByteBuf, ConsentRequestPayload> CODEC = StreamCodec.of(
+            (buf, value) -> buf.writeUUID(value.creeperUuid()),
+            buf -> new ConsentRequestPayload(buf.readUUID())
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
-        return ID;
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }
