@@ -28,10 +28,16 @@ public class CreeperConsentMod implements ModInitializer, ClientModInitializer {
 
     public static final Identifier CONSENT_REQUEST_ID = Identifier.fromNamespaceAndPath(MOD_ID, "consent_request");
     public static final Identifier CONSENT_RESPONSE_ID = Identifier.fromNamespaceAndPath(MOD_ID, "consent_response");
+    public static final Identifier FRIENDLY_CREEPER_ID = Identifier.fromNamespaceAndPath(MOD_ID, "friendly_creeper");
+
+    private static final long DENIAL_DURATION_TICKS = 72000L;
+    private static final long FLEE_DURATION_TICKS = 6000L;
 
     private static final Map<UUID, Creeper> awaitingConsent = new ConcurrentHashMap<>();
     private static final Set<UUID> requestedCreepers = ConcurrentHashMap.newKeySet();
     private static final Set<UUID> clientHandledCreepers = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, Long> deniedCreepers = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> fleeCreepers = new ConcurrentHashMap<>();
     private static UUID clientPendingCreeperUuid = null;
 
     @Override
@@ -40,6 +46,7 @@ public class CreeperConsentMod implements ModInitializer, ClientModInitializer {
 
         PayloadTypeRegistry.serverboundPlay().register(ConsentResponsePayload.TYPE, ConsentResponsePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ConsentRequestPayload.TYPE, ConsentRequestPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(FriendlyCreeperPayload.TYPE, FriendlyCreeperPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(ConsentResponsePayload.TYPE, (payload, context) -> {
             context.server().execute(() -> {
@@ -88,11 +95,31 @@ public class CreeperConsentMod implements ModInitializer, ClientModInitializer {
                     3.0f,
                     net.minecraft.world.level.Level.ExplosionInteraction.MOB
             );
+            creeper.discard();
         } else {
             LOGGER.info("Player {} denied consent", player.getName().getString());
+            long gameTime = creeper.level().getGameTime();
+            deniedCreepers.put(creeperUuid, gameTime + DENIAL_DURATION_TICKS);
+            fleeCreepers.put(creeperUuid, gameTime + FLEE_DURATION_TICKS);
+            FriendlyCreeperPayload payload = new FriendlyCreeperPayload(creeperUuid);
+            ServerPlayNetworking.send(player, payload);
         }
+    }
 
-        creeper.discard();
+    public static boolean isCreeperDenied(UUID uuid, long gameTime) {
+        Long expiry = deniedCreepers.get(uuid);
+        if (expiry == null) return false;
+        if (gameTime < expiry) return true;
+        deniedCreepers.remove(uuid);
+        fleeCreepers.remove(uuid);
+        return false;
+    }
+
+    public static boolean isInFleePeriod(UUID uuid, long gameTime) {
+        Long expiry = fleeCreepers.get(uuid);
+        if (expiry == null) return false;
+        if (gameTime < expiry) return true;
+        return false;
     }
 
     public static boolean setClientPendingCreeper(UUID creeperUuid) {

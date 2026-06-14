@@ -6,7 +6,10 @@
   "mixins": [
     "CreeperEntityMixin"
   ],
-  "client": [],
+  "client": [
+    "CreeperRenderStateMixin",
+    "CreeperRendererMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
