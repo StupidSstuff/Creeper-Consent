@@ -12,6 +12,12 @@ A mod that changes creeper behavior, making them ask a player for consent before
 4. Launch Minecraft with the appropriate Fabric profile.
 5. It should now work :3
 
+## License
+
+This project is licensed under the **Mulan Public License, Version 2 (MulanPubL-2.0)**.
+You may obtain a copy of the License at:
+http://license.coscl.org.cn/MulanPubL-2.0
+
 ## Contributing
 
 I originally created this mod after watching a YouTube video and reading the comments under it, especially the ones quoting Micro$oft/Mojang’s line: "Nothing bad will happen to a player unless it’s directly caused by them."
