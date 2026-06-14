@@ -49,6 +49,11 @@ public class CreeperEntityMixin {
                 return;
             }
 
+            if (CreeperConsentMod.clearExpiredDenial(uuid, gameTime)) {
+                creeper.setCustomName(null);
+                creeper.setCustomNameVisible(false);
+            }
+
             ServerPlayer nearestPlayer = (ServerPlayer) creeper.level()
                     .getNearestPlayer(creeper, 10.0);
 

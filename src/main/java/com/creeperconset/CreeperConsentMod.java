@@ -11,13 +11,17 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.monster.Creeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,9 +44,13 @@ public class CreeperConsentMod implements ModInitializer, ClientModInitializer {
     private static final Map<UUID, Long> fleeCreepers = new ConcurrentHashMap<>();
     private static UUID clientPendingCreeperUuid = null;
 
+    private static String[] names;
+    private static final Random RANDOM = new Random();
+
     @Override
     public void onInitialize() {
         LOGGER.info("Creeper Consent Mod initialized (Server)");
+        loadNames();
 
         PayloadTypeRegistry.serverboundPlay().register(ConsentResponsePayload.TYPE, ConsentResponsePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ConsentRequestPayload.TYPE, ConsentRequestPayload.CODEC);
@@ -59,6 +67,24 @@ public class CreeperConsentMod implements ModInitializer, ClientModInitializer {
     public void onInitializeClient() {
         LOGGER.info("Creeper Consent Mod initialized (Client)");
         CreeperConsentModClient.registerClientNetworking();
+    }
+
+    private static void loadNames() {
+        try (var in = CreeperConsentMod.class.getResourceAsStream("/namelist.txt")) {
+            if (in == null) {
+                names = new String[0];
+                LOGGER.warn("namelist.txt not found, friendly creepers will not have names");
+                return;
+            }
+            names = new BufferedReader(new InputStreamReader(in)).lines()
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty())
+                    .toArray(String[]::new);
+            LOGGER.info("Loaded {} names for friendly creepers", names.length);
+        } catch (Exception e) {
+            names = new String[0];
+            LOGGER.error("Failed to load namelist", e);
+        }
     }
 
     public static void requestConsent(Creeper creeper, ServerPlayer player) {
@@ -103,15 +129,28 @@ public class CreeperConsentMod implements ModInitializer, ClientModInitializer {
             fleeCreepers.put(creeperUuid, gameTime + FLEE_DURATION_TICKS);
             FriendlyCreeperPayload payload = new FriendlyCreeperPayload(creeperUuid);
             ServerPlayNetworking.send(player, payload);
+
+            if (names.length > 0) {
+                creeper.setCustomName(Component.literal(names[RANDOM.nextInt(names.length)]));
+                creeper.setCustomNameVisible(true);
+            }
         }
     }
 
     public static boolean isCreeperDenied(UUID uuid, long gameTime) {
         Long expiry = deniedCreepers.get(uuid);
         if (expiry == null) return false;
-        if (gameTime < expiry) return true;
-        deniedCreepers.remove(uuid);
-        fleeCreepers.remove(uuid);
+        return gameTime < expiry;
+    }
+
+    public static boolean clearExpiredDenial(UUID uuid, long gameTime) {
+        Long expiry = deniedCreepers.get(uuid);
+        if (expiry == null) return false;
+        if (gameTime >= expiry) {
+            deniedCreepers.remove(uuid);
+            fleeCreepers.remove(uuid);
+            return true;
+        }
         return false;
     }
 
