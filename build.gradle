@@ -1,41 +1,41 @@
-plugins {
-    id 'net.fabricmc.fabric-loom' version "${loom_version}"
-    id 'maven-publish'
-}
+apply plugin: 'base'
 
-version = project.mod_version
-group = project.maven_group
-base.archivesName = project.archives_base_name
+subprojects {
+    apply plugin: 'java-library'
 
-dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    group = project.maven_group
 
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-}
+    tasks.withType(JavaCompile).configureEach {
+        it.options.release = 25
+    }
 
-processResources {
-    def version = project.version
-    inputs.property "version", version
+    java {
+        withSourcesJar()
 
-    filesMatching("fabric.mod.json") {
-        expand "version": version
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
     }
 }
 
-tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
-}
+task release {
+    dependsOn subprojects*.build
 
-java {
-    withSourcesJar()
+    doLast {
+        file("Releases").listFiles().each { f ->
+            if (f.name != ".gitkeep") f.delete()
+        }
 
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
-}
+        copy {
+            from "fabric/build/libs/creeperconset-fabric-${project.mod_version}.jar"
+            from "neoforge/build/libs/creeperconset-neoforge-${project.mod_version}.jar"
+            into "Releases"
+        }
 
-jar {
-    from("LICENSE") {
-        rename { "${it}_${base.archivesName.get()}" }
+        delete fileTree("common/build/libs").include("*.jar")
+        delete fileTree("fabric/build/libs").include("*-sources.jar")
+        delete fileTree("neoforge/build/libs").include("*-sources.jar")
     }
 }
+
+build.dependsOn release
+build.mustRunAfter subprojects*.build

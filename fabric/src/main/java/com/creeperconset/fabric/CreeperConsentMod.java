@@ -1,0 +1,131 @@
+/*
+ * Copyright (c) 2025 Viktor Milivojević
+ * CreeperConsent is licensed under Mulan PubL v2.
+ * You can use this software according to the terms and conditions of the Mulan PubL v2.
+ * You may obtain a copy of Mulan PubL v2 at:
+ *     http://license.coscl.org.cn/MulanPubL-2.0
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PubL v2 for more details.
+ */
+
+package com.creeperconset.fabric;
+
+import com.creeperconset.CreeperConsentState;
+import com.creeperconset.payload.ConsentRequestPayload;
+import com.creeperconset.payload.ConsentResponsePayload;
+import com.creeperconset.payload.FriendlyCreeperPayload;
+import com.creeperconset.payload.RemoveFriendlyCreeperPayload;
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.level.Level;
+
+import com.google.gson.Gson;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
+public class CreeperConsentMod implements ModInitializer {
+    @Override
+    public void onInitialize() {
+        CreeperConsentState.LOGGER.info("Creeper Consent Mod initialized (Server)");
+        loadNames();
+
+        PayloadTypeRegistry.serverboundPlay().register(ConsentResponsePayload.TYPE, ConsentResponsePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ConsentRequestPayload.TYPE, ConsentRequestPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(FriendlyCreeperPayload.TYPE, FriendlyCreeperPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RemoveFriendlyCreeperPayload.TYPE, RemoveFriendlyCreeperPayload.CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(ConsentResponsePayload.TYPE, (payload, context) -> {
+            context.server().execute(() -> {
+                handleConsentResponse(payload.creeperUuid(), payload.allowed(), context.player());
+            });
+        });
+    }
+
+    private static void loadNames() {
+        try (var in = CreeperConsentMod.class.getResourceAsStream("/namelist.json")) {
+            if (in == null) {
+                CreeperConsentState.LOGGER.warn("namelist.json not found, friendly creepers will not have names");
+                return;
+            }
+            String[] loaded = new Gson().fromJson(
+                    new String(in.readAllBytes(), StandardCharsets.UTF_8),
+                    String[].class
+            );
+            CreeperConsentState.setNames(loaded);
+            CreeperConsentState.LOGGER.info("Loaded {} names for friendly creepers", loaded.length);
+        } catch (Exception e) {
+            CreeperConsentState.LOGGER.error("Failed to load namelist", e);
+        }
+    }
+
+    public static void requestConsent(Creeper creeper, ServerPlayer player) {
+        UUID creeperUuid = creeper.getUUID();
+
+        if (!CreeperConsentState.markRequested(creeperUuid)) {
+            return;
+        }
+
+        CreeperConsentState.addAwaitingConsent(creeperUuid, creeper);
+
+        ConsentRequestPayload payload = new ConsentRequestPayload(creeperUuid);
+        ServerPlayNetworking.send(player, payload);
+
+        CreeperConsentState.LOGGER.info("Sent consent request to player {} for creeper {}", player.getName().getString(), creeperUuid);
+    }
+
+    private static void handleConsentResponse(UUID creeperUuid, boolean allowed, ServerPlayer player) {
+        Creeper creeper = CreeperConsentState.removeAwaitingConsent(creeperUuid);
+        CreeperConsentState.removeRequested(creeperUuid);
+
+        if (creeper == null || creeper.isRemoved()) {
+            CreeperConsentState.LOGGER.warn("Creeper {} no longer exists", creeperUuid);
+            return;
+        }
+
+        if (allowed) {
+            CreeperConsentState.LOGGER.info("Player {} granted consent for explosion", player.getName().getString());
+            creeper.level().explode(
+                    creeper,
+                    creeper.getX(),
+                    creeper.getY(),
+                    creeper.getZ(),
+                    3.0f,
+                    Level.ExplosionInteraction.MOB
+            );
+            creeper.discard();
+        } else {
+            CreeperConsentState.LOGGER.info("Player {} denied consent", player.getName().getString());
+            long gameTime = creeper.level().getGameTime();
+            CreeperConsentState.addDeniedCreeper(creeperUuid, gameTime + CreeperConsentState.DENIAL_DURATION_TICKS);
+            CreeperConsentState.addFleeCreeper(creeperUuid, gameTime + CreeperConsentState.FLEE_DURATION_TICKS);
+            FriendlyCreeperPayload payload = new FriendlyCreeperPayload(creeperUuid);
+            ServerPlayNetworking.send(player, payload);
+
+            ((ServerLevel) creeper.level()).sendParticles(
+                    ParticleTypes.HAPPY_VILLAGER,
+                    creeper.getX(), creeper.getY() + 1.0, creeper.getZ(),
+                    8, 0.5, 0.5, 0.5, 0.0
+            );
+
+            String name = CreeperConsentState.getRandomName();
+            if (name != null) {
+                creeper.setCustomName(Component.literal(name));
+                creeper.setCustomNameVisible(true);
+            }
+
+            if (creeper.getRandom().nextFloat() < 0.01f) {
+                player.sendSystemMessage(Component.literal("Creeper's explosion request denied. STAND STILL! COMPLY WITH THE LAW! IN CONCLU-SION..."));
+            } else {
+                player.sendSystemMessage(Component.literal("Creeper has been denied consent. It will respect your boundaries for 3 days."));
+            }
+        }
+    }
+}

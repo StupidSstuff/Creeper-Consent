@@ -18,3 +18,5 @@ runs/
 Thumbs.db
 logs/
 *.log
+Releases/
+tmp_*
