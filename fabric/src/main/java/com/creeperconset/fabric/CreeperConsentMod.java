@@ -121,6 +121,7 @@ public class CreeperConsentMod implements ModInitializer {
             long gameTime = creeper.level().getGameTime();
             CreeperConsentState.addDeniedCreeper(creeperUuid, gameTime + CreeperConsentState.DENIAL_DURATION_TICKS);
             CreeperConsentState.addFleeCreeper(creeperUuid, gameTime + CreeperConsentState.FLEE_DURATION_TICKS);
+            CreeperConsentState.addFriendlyCreeper(creeperUuid);
             FriendlyCreeperPayload payload = new FriendlyCreeperPayload(creeperUuid);
             ServerPlayNetworking.send(player, payload);
 

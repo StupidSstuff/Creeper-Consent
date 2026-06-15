@@ -133,6 +133,7 @@ public class CreeperConsentNeoMod {
             long gameTime = creeper.level().getGameTime();
             CreeperConsentState.addDeniedCreeper(creeperUuid, gameTime + CreeperConsentState.DENIAL_DURATION_TICKS);
             CreeperConsentState.addFleeCreeper(creeperUuid, gameTime + CreeperConsentState.FLEE_DURATION_TICKS);
+            CreeperConsentState.addFriendlyCreeper(creeperUuid);
             FriendlyCreeperPayload payload = new FriendlyCreeperPayload(creeperUuid);
             player.connection.send(payload);
 
