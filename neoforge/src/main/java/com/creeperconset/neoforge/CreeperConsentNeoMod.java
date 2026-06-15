@@ -12,6 +12,7 @@
 
 package com.creeperconset.neoforge;
 
+import com.creeperconset.CreeperConsentSavedData;
 import com.creeperconset.CreeperConsentState;
 import com.creeperconset.payload.ConsentRequestPayload;
 import com.creeperconset.payload.ConsentResponsePayload;
@@ -27,6 +28,9 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
@@ -40,6 +44,22 @@ public class CreeperConsentNeoMod {
         CreeperConsentState.LOGGER.info("Creeper Consent Mod initialized (NeoForge)");
         loadNames();
         modBus.addListener(this::onRegisterPayloadHandlers);
+        NeoForge.EVENT_BUS.addListener(this::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+    }
+
+    private void onServerStarted(ServerStartedEvent event) {
+        CreeperConsentSavedData data = event.getServer().getLevel(Level.OVERWORLD).getDataStorage()
+                .computeIfAbsent(CreeperConsentSavedData.TYPE);
+        CreeperConsentState.setSavedData(data);
+    }
+
+    private void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            for (UUID uuid : CreeperConsentState.getFriendlyCreepers()) {
+                serverPlayer.connection.send(new FriendlyCreeperPayload(uuid));
+            }
+        }
     }
 
     private void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {

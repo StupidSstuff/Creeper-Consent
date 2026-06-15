@@ -46,6 +46,7 @@ public class CreeperEntityMixin {
             long gameTime = creeper.level().getGameTime();
 
             if (CreeperConsentState.isCreeperDenied(uuid, gameTime)) {
+                creeper.setPersistenceRequired();
                 creeper.setSwellDir(-1);
                 if (creeper.tickCount % 100 == 0
                         && creeper.level().getNearestPlayer(creeper, 10.0) != null) {

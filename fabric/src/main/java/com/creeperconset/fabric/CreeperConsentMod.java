@@ -12,12 +12,15 @@
 
 package com.creeperconset.fabric;
 
+import com.creeperconset.CreeperConsentSavedData;
 import com.creeperconset.CreeperConsentState;
 import com.creeperconset.payload.ConsentRequestPayload;
 import com.creeperconset.payload.ConsentResponsePayload;
 import com.creeperconset.payload.FriendlyCreeperPayload;
 import com.creeperconset.payload.RemoveFriendlyCreeperPayload;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.core.particles.ParticleTypes;
@@ -46,6 +49,18 @@ public class CreeperConsentMod implements ModInitializer {
             context.server().execute(() -> {
                 handleConsentResponse(payload.creeperUuid(), payload.allowed(), context.player());
             });
+        });
+
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            CreeperConsentSavedData data = server.getLevel(Level.OVERWORLD).getDataStorage()
+                    .computeIfAbsent(CreeperConsentSavedData.TYPE);
+            CreeperConsentState.setSavedData(data);
+        });
+
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            for (UUID uuid : CreeperConsentState.getFriendlyCreepers()) {
+                ServerPlayNetworking.send(handler.player, new FriendlyCreeperPayload(uuid));
+            }
         });
     }
 

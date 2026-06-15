@@ -16,6 +16,7 @@ import net.minecraft.world.entity.monster.Creeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -29,16 +30,22 @@ public class CreeperConsentState {
     public static final long DENIAL_DURATION_TICKS = 72000L;
     public static final long FLEE_DURATION_TICKS = 6000L;
 
+    private static CreeperConsentSavedData savedData = null;
+
     private static final Map<UUID, Creeper> awaitingConsent = new ConcurrentHashMap<>();
     private static final Set<UUID> requestedCreepers = ConcurrentHashMap.newKeySet();
     private static final Set<UUID> clientHandledCreepers = ConcurrentHashMap.newKeySet();
-    private static final Map<UUID, Long> deniedCreepers = new ConcurrentHashMap<>();
-    private static final Map<UUID, Long> fleeCreepers = new ConcurrentHashMap<>();
-    private static final Set<UUID> friendlyCreepers = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, Long> deniedCreepersFallback = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> fleeCreepersFallback = new ConcurrentHashMap<>();
+    private static final Set<UUID> friendlyCreepersFallback = ConcurrentHashMap.newKeySet();
     private static UUID clientPendingCreeperUuid = null;
 
     private static String[] names = new String[0];
     private static final Random RANDOM = new Random();
+
+    public static void setSavedData(CreeperConsentSavedData data) {
+        savedData = data;
+    }
 
     public static boolean markRequested(UUID uuid) {
         return requestedCreepers.add(uuid);
@@ -57,33 +64,50 @@ public class CreeperConsentState {
     }
 
     public static void addDeniedCreeper(UUID uuid, long expiry) {
-        deniedCreepers.put(uuid, expiry);
+        if (savedData != null) {
+            savedData.addDeniedCreeper(uuid, expiry);
+        } else {
+            deniedCreepersFallback.put(uuid, expiry);
+        }
     }
 
     public static void addFleeCreeper(UUID uuid, long expiry) {
-        fleeCreepers.put(uuid, expiry);
+        if (savedData != null) {
+            savedData.addFleeCreeper(uuid, expiry);
+        } else {
+            fleeCreepersFallback.put(uuid, expiry);
+        }
     }
 
     public static boolean isCreeperDenied(UUID uuid, long gameTime) {
-        Long expiry = deniedCreepers.get(uuid);
+        if (savedData != null) {
+            return savedData.isCreeperDenied(uuid, gameTime);
+        }
+        Long expiry = deniedCreepersFallback.get(uuid);
         if (expiry == null) return false;
         return gameTime < expiry;
     }
 
     public static boolean clearExpiredDenial(UUID uuid, long gameTime) {
-        Long expiry = deniedCreepers.get(uuid);
+        if (savedData != null) {
+            return savedData.clearExpiredDenial(uuid, gameTime);
+        }
+        Long expiry = deniedCreepersFallback.get(uuid);
         if (expiry == null) return false;
         if (gameTime >= expiry) {
-            deniedCreepers.remove(uuid);
-            fleeCreepers.remove(uuid);
-            removeFriendlyCreeper(uuid);
+            deniedCreepersFallback.remove(uuid);
+            fleeCreepersFallback.remove(uuid);
+            friendlyCreepersFallback.remove(uuid);
             return true;
         }
         return false;
     }
 
     public static boolean isInFleePeriod(UUID uuid, long gameTime) {
-        Long expiry = fleeCreepers.get(uuid);
+        if (savedData != null) {
+            return savedData.isInFleePeriod(uuid, gameTime);
+        }
+        Long expiry = fleeCreepersFallback.get(uuid);
         if (expiry == null) return false;
         if (gameTime < expiry) return true;
         return false;
@@ -112,15 +136,33 @@ public class CreeperConsentState {
     }
 
     public static void addFriendlyCreeper(UUID uuid) {
-        friendlyCreepers.add(uuid);
+        if (savedData != null) {
+            savedData.addFriendlyCreeper(uuid);
+        } else {
+            friendlyCreepersFallback.add(uuid);
+        }
     }
 
     public static boolean isFriendlyCreeper(UUID uuid) {
-        return friendlyCreepers.contains(uuid);
+        if (savedData != null) {
+            return savedData.isFriendlyCreeper(uuid);
+        }
+        return friendlyCreepersFallback.contains(uuid);
     }
 
     public static void removeFriendlyCreeper(UUID uuid) {
-        friendlyCreepers.remove(uuid);
+        if (savedData != null) {
+            savedData.removeFriendlyCreeper(uuid);
+        } else {
+            friendlyCreepersFallback.remove(uuid);
+        }
+    }
+
+    public static Collection<UUID> getFriendlyCreepers() {
+        if (savedData != null) {
+            return savedData.getFriendlyCreepers();
+        }
+        return friendlyCreepersFallback;
     }
 
     public static void setNames(String[] newNames) {
