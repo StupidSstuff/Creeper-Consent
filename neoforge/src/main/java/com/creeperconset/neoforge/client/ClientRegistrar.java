@@ -33,6 +33,9 @@ public class ClientRegistrar {
         PayloadRegistrar registrar = event.registrar(CreeperConsentState.MOD_ID).versioned("1.0");
         registrar.playToClient(ConsentRequestPayload.TYPE, ConsentRequestPayload.CODEC, (payload, context) -> {
             context.enqueueWork(() -> {
+                if (CreeperConsentState.isFriendlyCreeper(payload.creeperUuid())) {
+                    return;
+                }
                 CreeperConsentState.removeFriendlyCreeper(payload.creeperUuid());
                 if (CreeperConsentState.setClientPendingCreeper(payload.creeperUuid())) {
                     Minecraft.getInstance().setScreen(new ConsentScreen(payload.creeperUuid()));

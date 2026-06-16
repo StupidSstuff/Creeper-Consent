@@ -36,6 +36,9 @@ public class CreeperConsentModClient implements ClientModInitializer {
     public static void registerClientNetworking() {
         ClientPlayNetworking.registerGlobalReceiver(ConsentRequestPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
+                if (CreeperConsentState.isFriendlyCreeper(payload.creeperUuid())) {
+                    return;
+                }
                 CreeperConsentState.removeFriendlyCreeper(payload.creeperUuid());
                 if (CreeperConsentState.setClientPendingCreeper(payload.creeperUuid())) {
                     context.client().setScreen(new ConsentScreen(payload.creeperUuid()));

@@ -16,6 +16,7 @@ import net.minecraft.world.entity.monster.Creeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Random;
@@ -29,6 +30,7 @@ public class CreeperConsentState {
 
     public static final long DENIAL_DURATION_TICKS = 72000L;
     public static final long FLEE_DURATION_TICKS = 6000L;
+    public static final double BATCH_DENY_RADIUS = 6.0;
 
     private static CreeperConsentSavedData savedData = null;
 
@@ -61,6 +63,10 @@ public class CreeperConsentState {
 
     public static void removeRequested(UUID uuid) {
         requestedCreepers.remove(uuid);
+    }
+
+    public static Collection<Map.Entry<UUID, Creeper>> getAwaitingConsentEntries() {
+        return new ArrayList<>(awaitingConsent.entrySet());
     }
 
     public static void addDeniedCreeper(UUID uuid, long expiry) {

@@ -36,6 +36,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 import com.google.gson.Gson;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 
 @Mod(CreeperConsentState.MOD_ID)
@@ -154,6 +155,44 @@ public class CreeperConsentNeoMod {
             } else {
                 player.sendSystemMessage(Component.literal("Creeper has been denied consent. It will respect your boundaries for 3 days."));
             }
+
+            denyNearbyAwaiting(creeper, player);
+        }
+    }
+
+    private static void denyNearbyAwaiting(Creeper handledCreeper, ServerPlayer player) {
+        double radiusSq = CreeperConsentState.BATCH_DENY_RADIUS * CreeperConsentState.BATCH_DENY_RADIUS;
+        int count = 0;
+        for (Map.Entry<UUID, Creeper> entry : CreeperConsentState.getAwaitingConsentEntries()) {
+            Creeper other = entry.getValue();
+            if (other == handledCreeper || other == null || other.isRemoved()) continue;
+            if (player.distanceToSqr(other) > radiusSq) continue;
+
+            UUID otherUuid = entry.getKey();
+            CreeperConsentState.removeAwaitingConsent(otherUuid);
+            CreeperConsentState.removeRequested(otherUuid);
+
+            long otherGameTime = other.level().getGameTime();
+            CreeperConsentState.addDeniedCreeper(otherUuid, otherGameTime + CreeperConsentState.DENIAL_DURATION_TICKS);
+            CreeperConsentState.addFleeCreeper(otherUuid, otherGameTime + CreeperConsentState.FLEE_DURATION_TICKS);
+            CreeperConsentState.addFriendlyCreeper(otherUuid);
+
+            player.connection.send(new FriendlyCreeperPayload(otherUuid));
+            ((ServerLevel) other.level()).sendParticles(
+                    ParticleTypes.HAPPY_VILLAGER,
+                    other.getX(), other.getY() + 1.0, other.getZ(),
+                    8, 0.5, 0.5, 0.5, 0.0
+            );
+
+            String name = CreeperConsentState.getRandomName();
+            if (name != null) {
+                other.setCustomName(Component.literal(name));
+                other.setCustomNameVisible(true);
+            }
+            count++;
+        }
+        if (count > 0) {
+            CreeperConsentState.LOGGER.info("Batch-denied {} nearby creepers for player {}", count, player.getName().getString());
         }
     }
 }
