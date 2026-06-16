@@ -31,6 +31,9 @@ public class CreeperConsentState {
     public static final long DENIAL_DURATION_TICKS = 72000L;
     public static final long FLEE_DURATION_TICKS = 6000L;
     public static final double BATCH_DENY_RADIUS = 6.0;
+    public static final long DENY_COOLDOWN_TICKS = 200L;
+
+    private static final Map<UUID, Long> playerDenyCooldowns = new ConcurrentHashMap<>();
 
     private static CreeperConsentSavedData savedData = null;
 
@@ -169,6 +172,18 @@ public class CreeperConsentState {
             return savedData.getFriendlyCreepers();
         }
         return friendlyCreepersFallback;
+    }
+
+    public static void recordPlayerDeny(UUID playerUuid, long gameTime) {
+        playerDenyCooldowns.put(playerUuid, gameTime + DENY_COOLDOWN_TICKS);
+    }
+
+    public static long getPlayerDenyCooldownExpiry(UUID playerUuid) {
+        return playerDenyCooldowns.getOrDefault(playerUuid, 0L);
+    }
+
+    public static void clearPlayerDenyCooldown(UUID playerUuid) {
+        playerDenyCooldowns.remove(playerUuid);
     }
 
     public static void setNames(String[] newNames) {

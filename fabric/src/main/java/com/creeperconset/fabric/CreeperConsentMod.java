@@ -84,6 +84,14 @@ public class CreeperConsentMod implements ModInitializer {
 
     public static void requestConsent(Creeper creeper, ServerPlayer player) {
         UUID creeperUuid = creeper.getUUID();
+        long gameTime = creeper.level().getGameTime();
+
+        long cooldownExpiry = CreeperConsentState.getPlayerDenyCooldownExpiry(player.getUUID());
+        if (gameTime < cooldownExpiry) {
+            CreeperConsentState.LOGGER.info("Player {} on deny cooldown, auto-denying creeper {}", player.getName().getString(), creeperUuid);
+            denyAndFriendlyCreeper(creeper, player, gameTime);
+            return;
+        }
 
         if (!CreeperConsentState.markRequested(creeperUuid)) {
             return;
@@ -120,67 +128,50 @@ public class CreeperConsentMod implements ModInitializer {
         } else {
             CreeperConsentState.LOGGER.info("Player {} denied consent", player.getName().getString());
             long gameTime = creeper.level().getGameTime();
-            CreeperConsentState.addDeniedCreeper(creeperUuid, gameTime + CreeperConsentState.DENIAL_DURATION_TICKS);
-            CreeperConsentState.addFleeCreeper(creeperUuid, gameTime + CreeperConsentState.FLEE_DURATION_TICKS);
-            CreeperConsentState.addFriendlyCreeper(creeperUuid);
-            FriendlyCreeperPayload payload = new FriendlyCreeperPayload(creeperUuid);
-            ServerPlayNetworking.send(player, payload);
-
-            ((ServerLevel) creeper.level()).sendParticles(
-                    ParticleTypes.HAPPY_VILLAGER,
-                    creeper.getX(), creeper.getY() + 1.0, creeper.getZ(),
-                    8, 0.5, 0.5, 0.5, 0.0
-            );
-
-            String name = CreeperConsentState.getRandomName();
-            if (name != null) {
-                creeper.setCustomName(Component.literal(name));
-                creeper.setCustomNameVisible(true);
-            }
-
-            if (creeper.getRandom().nextFloat() < 0.01f) {
-                player.sendSystemMessage(Component.literal("Creeper's explosion request denied. STAND STILL! COMPLY WITH THE LAW! IN CONCLU-SION..."));
-            } else {
-                player.sendSystemMessage(Component.literal("Creeper has been denied consent. It will respect your boundaries for 3 days."));
-            }
-
-            denyNearbyAwaiting(creeper, player);
+            CreeperConsentState.recordPlayerDeny(player.getUUID(), gameTime);
+            denyAndFriendlyCreeper(creeper, player, gameTime);
+            denyNearbyCreepers(creeper, player);
         }
     }
 
-    private static void denyNearbyAwaiting(Creeper handledCreeper, ServerPlayer player) {
-        double radiusSq = CreeperConsentState.BATCH_DENY_RADIUS * CreeperConsentState.BATCH_DENY_RADIUS;
+    private static void denyAndFriendlyCreeper(Creeper creeper, ServerPlayer player, long gameTime) {
+        UUID uuid = creeper.getUUID();
+        CreeperConsentState.addDeniedCreeper(uuid, gameTime + CreeperConsentState.DENIAL_DURATION_TICKS);
+        CreeperConsentState.addFleeCreeper(uuid, gameTime + CreeperConsentState.FLEE_DURATION_TICKS);
+        CreeperConsentState.addFriendlyCreeper(uuid);
+        ServerPlayNetworking.send(player, new FriendlyCreeperPayload(uuid));
+
+        ((ServerLevel) creeper.level()).sendParticles(
+                ParticleTypes.HAPPY_VILLAGER,
+                creeper.getX(), creeper.getY() + 1.0, creeper.getZ(),
+                8, 0.5, 0.5, 0.5, 0.0
+        );
+
+        String name = CreeperConsentState.getRandomName();
+        if (name != null) {
+            creeper.setCustomName(Component.literal(name));
+            creeper.setCustomNameVisible(true);
+        }
+
+        if (creeper.getRandom().nextFloat() < 0.01f) {
+            player.sendSystemMessage(Component.literal("Creeper's explosion request denied. STAND STILL! COMPLY WITH THE LAW! IN CONCLU-SION..."));
+        } else {
+            player.sendSystemMessage(Component.literal("Creeper has been denied consent. It will respect your boundaries for 3 days."));
+        }
+    }
+
+    private static void denyNearbyCreepers(Creeper handledCreeper, ServerPlayer player) {
+        double radius = CreeperConsentState.BATCH_DENY_RADIUS;
+        long gameTime = handledCreeper.level().getGameTime();
         int count = 0;
-        for (Map.Entry<UUID, Creeper> entry : CreeperConsentState.getAwaitingConsentEntries()) {
-            Creeper other = entry.getValue();
-            if (other == handledCreeper || other == null || other.isRemoved()) continue;
-            if (player.distanceToSqr(other) > radiusSq) continue;
-
-            UUID otherUuid = entry.getKey();
-            CreeperConsentState.removeAwaitingConsent(otherUuid);
-            CreeperConsentState.removeRequested(otherUuid);
-
-            long otherGameTime = other.level().getGameTime();
-            CreeperConsentState.addDeniedCreeper(otherUuid, otherGameTime + CreeperConsentState.DENIAL_DURATION_TICKS);
-            CreeperConsentState.addFleeCreeper(otherUuid, otherGameTime + CreeperConsentState.FLEE_DURATION_TICKS);
-            CreeperConsentState.addFriendlyCreeper(otherUuid);
-
-            ServerPlayNetworking.send(player, new FriendlyCreeperPayload(otherUuid));
-            ((ServerLevel) other.level()).sendParticles(
-                    ParticleTypes.HAPPY_VILLAGER,
-                    other.getX(), other.getY() + 1.0, other.getZ(),
-                    8, 0.5, 0.5, 0.5, 0.0
-            );
-
-            String name = CreeperConsentState.getRandomName();
-            if (name != null) {
-                other.setCustomName(Component.literal(name));
-                other.setCustomNameVisible(true);
-            }
+        for (Creeper other : ((ServerLevel) player.level()).getEntitiesOfClass(Creeper.class, player.getBoundingBox().inflate(radius))) {
+            if (other == handledCreeper || other.isRemoved()) continue;
+            if (CreeperConsentState.isCreeperDenied(other.getUUID(), gameTime)) continue;
+            denyAndFriendlyCreeper(other, player, gameTime);
             count++;
         }
         if (count > 0) {
-            CreeperConsentState.LOGGER.info("Batch-denied {} nearby creepers for player {}", count, player.getName().getString());
+            CreeperConsentState.LOGGER.info("Denied {} nearby creepers for player {}", count, player.getName().getString());
         }
     }
 }
