@@ -36,11 +36,12 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 import com.google.gson.Gson;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.UUID;
 
 @Mod(CreeperConsentState.MOD_ID)
 public class CreeperConsentNeoMod {
+    private static final String SAVED_DATA_ID = "consent_data";
+
     public CreeperConsentNeoMod(IEventBus modBus) {
         CreeperConsentState.LOGGER.info("Creeper Consent Mod initialized (NeoForge)");
         loadNames();
@@ -50,8 +51,10 @@ public class CreeperConsentNeoMod {
     }
 
     private void onServerStarted(ServerStartedEvent event) {
-        CreeperConsentSavedData data = event.getServer().getLevel(Level.OVERWORLD).getDataStorage()
-                .computeIfAbsent(CreeperConsentSavedData.TYPE);
+        CreeperConsentSavedData data = event.getServer()
+                .getLevel(Level.OVERWORLD)
+                .getDataStorage()
+                .computeIfAbsent(CreeperConsentSavedData.FACTORY, SAVED_DATA_ID);
         CreeperConsentState.setSavedData(data);
     }
 
