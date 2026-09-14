@@ -22,13 +22,13 @@ config = "creeperconset.common.mixins.json"
 [[dependencies.creeperconset]]
 modId = "neoforge"
 type = "required"
-versionRange = "[26.1.2.15-beta,)"
+versionRange = "[21.1.211,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.creeperconset]]
 modId = "minecraft"
 type = "required"
-versionRange = "[26.1.2,26.2)"
+versionRange = "[1.21.1,1.22)"
 ordering = "NONE"
 side = "BOTH"
