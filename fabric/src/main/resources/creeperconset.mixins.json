@@ -2,14 +2,13 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.creeperconset.fabric.mixin",
-  "compatibilityLevel": "JAVA_25",
-"mixins": [
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
     "CreeperEntityMixin",
     "LivingEntityMixin",
     "SwellGoalMixin"
-],
+  ],
   "client": [
-    "CreeperRenderStateMixin",
     "CreeperRendererMixin"
   ],
   "injectors": {
