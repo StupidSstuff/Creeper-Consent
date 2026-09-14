@@ -9,8 +9,7 @@
         "SwellGoalMixin"
     ],
     "client": [
-        "CreeperRendererMixin",
-        "CreeperRenderStateMixin"
+        "CreeperRendererMixin"
     ],
     "injectors": {
         "defaultRequire": 1
