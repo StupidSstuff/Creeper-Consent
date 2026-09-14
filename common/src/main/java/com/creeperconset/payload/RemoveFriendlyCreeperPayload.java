@@ -16,12 +16,12 @@ import com.creeperconset.CreeperConsentState;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.UUID;
 
 public record RemoveFriendlyCreeperPayload(UUID creeperUuid) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<RemoveFriendlyCreeperPayload> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(CreeperConsentState.MOD_ID, "remove_friendly_creeper"));
+    public static final CustomPacketPayload.Type<RemoveFriendlyCreeperPayload> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(CreeperConsentState.MOD_ID, "remove_friendly_creeper"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, RemoveFriendlyCreeperPayload> CODEC = StreamCodec.of(
             (buf, value) -> buf.writeUUID(value.creeperUuid()),
