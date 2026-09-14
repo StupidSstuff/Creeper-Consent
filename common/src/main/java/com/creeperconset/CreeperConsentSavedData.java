@@ -12,18 +12,15 @@
 
 package com.creeperconset;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.resources.Identifier;
-import net.minecraft.util.datafix.DataFixTypes;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -34,41 +31,80 @@ public class CreeperConsentSavedData extends SavedData {
     final Map<UUID, Long> fleeCreepers = new HashMap<>();
     final Set<UUID> friendlyCreepers = new HashSet<>();
 
-    private static final Codec<Map<String, Long>> STRING_LONG_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.LONG);
+    /**
+     * Minecraft 1.21.1 SavedData uses a SavedData.Factory consisting of a
+     * constructor supplier and an NBT loader. The file name is supplied to
+     * DimensionDataStorage#computeIfAbsent from the platform module.
+     */
+    public static final SavedData.Factory<CreeperConsentSavedData> FACTORY =
+            new SavedData.Factory<>(
+                    CreeperConsentSavedData::create,
+                    CreeperConsentSavedData::load
+            );
 
-    public static final Codec<CreeperConsentSavedData> CODEC = RecordCodecBuilder.create(instance ->
-        instance.group(
-            STRING_LONG_MAP_CODEC.fieldOf("DeniedCreepers").forGetter(d -> {
-                Map<String, Long> map = new HashMap<>();
-                d.deniedCreepers.forEach((uuid, expiry) -> map.put(uuid.toString(), expiry));
-                return map;
-            }),
-            STRING_LONG_MAP_CODEC.fieldOf("FleeCreepers").forGetter(d -> {
-                Map<String, Long> map = new HashMap<>();
-                d.fleeCreepers.forEach((uuid, expiry) -> map.put(uuid.toString(), expiry));
-                return map;
-            }),
-            Codec.STRING.listOf().fieldOf("FriendlyCreepers").forGetter(d ->
-                new ArrayList<>(d.friendlyCreepers.stream().map(UUID::toString).toList())
-            )
-        ).apply(instance, CreeperConsentSavedData::new)
-    );
+    public static CreeperConsentSavedData create() {
+        return new CreeperConsentSavedData();
+    }
 
-    public static final SavedDataType<CreeperConsentSavedData> TYPE = new SavedDataType<>(
-            Identifier.fromNamespaceAndPath(CreeperConsentState.MOD_ID, "consent_data"),
-            CreeperConsentSavedData::new,
-            CODEC,
-            DataFixTypes.LEVEL
-    );
+    public static CreeperConsentSavedData load(CompoundTag tag, HolderLookup.Provider lookupProvider) {
+        CreeperConsentSavedData data = create();
 
-    private CreeperConsentSavedData() {}
+        CompoundTag deniedTag = tag.getCompound("DeniedCreepers");
+        for (String key : deniedTag.getAllKeys()) {
+            try {
+                data.deniedCreepers.put(UUID.fromString(key), deniedTag.getLong(key));
+            } catch (IllegalArgumentException ignored) {
+                CreeperConsentState.LOGGER.warn("Ignoring invalid denied creeper UUID in saved data: {}", key);
+            }
+        }
 
-    private CreeperConsentSavedData(Map<String, Long> denied, Map<String, Long> flee, List<String> friendly) {
-        denied.forEach((key, value) -> this.deniedCreepers.put(UUID.fromString(key), value));
-        flee.forEach((key, value) -> this.fleeCreepers.put(UUID.fromString(key), value));
-        friendly.forEach(s -> this.friendlyCreepers.add(UUID.fromString(s)));
-        CreeperConsentState.LOGGER.info("Loaded consent data: {} denied, {} friendly",
-                this.deniedCreepers.size(), this.friendlyCreepers.size());
+        CompoundTag fleeTag = tag.getCompound("FleeCreepers");
+        for (String key : fleeTag.getAllKeys()) {
+            try {
+                data.fleeCreepers.put(UUID.fromString(key), fleeTag.getLong(key));
+            } catch (IllegalArgumentException ignored) {
+                CreeperConsentState.LOGGER.warn("Ignoring invalid fleeing creeper UUID in saved data: {}", key);
+            }
+        }
+
+        ListTag friendlyTag = tag.getList("FriendlyCreepers", Tag.TAG_STRING);
+        for (int i = 0; i < friendlyTag.size(); i++) {
+            String value = friendlyTag.getString(i);
+            try {
+                data.friendlyCreepers.add(UUID.fromString(value));
+            } catch (IllegalArgumentException ignored) {
+                CreeperConsentState.LOGGER.warn("Ignoring invalid friendly creeper UUID in saved data: {}", value);
+            }
+        }
+
+        CreeperConsentState.LOGGER.info(
+                "Loaded consent data: {} denied, {} friendly",
+                data.deniedCreepers.size(),
+                data.friendlyCreepers.size()
+        );
+        return data;
+    }
+
+    private CreeperConsentSavedData() {
+    }
+
+    @Override
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider lookupProvider) {
+        CompoundTag deniedTag = new CompoundTag();
+        deniedCreepers.forEach((uuid, expiry) -> deniedTag.putLong(uuid.toString(), expiry));
+        tag.put("DeniedCreepers", deniedTag);
+
+        CompoundTag fleeTag = new CompoundTag();
+        fleeCreepers.forEach((uuid, expiry) -> fleeTag.putLong(uuid.toString(), expiry));
+        tag.put("FleeCreepers", fleeTag);
+
+        ListTag friendlyTag = new ListTag();
+        friendlyCreepers.stream()
+                .map(UUID::toString)
+                .forEach(friendlyTag::addString);
+        tag.put("FriendlyCreepers", friendlyTag);
+
+        return tag;
     }
 
     public boolean isCreeperDenied(UUID uuid, long gameTime) {
